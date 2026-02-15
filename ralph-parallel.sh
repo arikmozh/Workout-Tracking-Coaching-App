@@ -53,32 +53,49 @@ cleanup() {
 }
 trap cleanup INT TERM
 
-# --- Wave Definitions ---
+# --- Wave Definitions (Bash 3 compatible) ---
 
-WAVE_ORDER=("A" "B" "C" "D" "E" "F")
+WAVE_ORDER=("A" "B" "C" "D" "E" "F" "G" "H")
 
-# Wave config: PHASES MODE DESCRIPTION
-declare -A WAVE_PHASES WAVE_MODES WAVE_DESCS
-WAVE_PHASES[A]="1 2 3 4 5 6 7"
-WAVE_PHASES[B]="8 9 14"
-WAVE_PHASES[C]="10 13"
-WAVE_PHASES[D]="11"
-WAVE_PHASES[E]="12"
-WAVE_PHASES[F]="15"
+# Lookup functions instead of associative arrays
+get_wave_phases() {
+    case "$1" in
+        A) echo "1 2 3 4 5 6 7" ;;
+        B) echo "8 9 14 15" ;;
+        C) echo "10 13" ;;
+        D) echo "11" ;;
+        E) echo "12" ;;
+        F) echo "16 17" ;;
+        G) echo "18 19 20" ;;
+        H) echo "21 22" ;;
+    esac
+}
 
-WAVE_MODES[A]="sequential"
-WAVE_MODES[B]="parallel"
-WAVE_MODES[C]="parallel"
-WAVE_MODES[D]="sequential"
-WAVE_MODES[E]="sequential"
-WAVE_MODES[F]="sequential"
+get_wave_mode() {
+    case "$1" in
+        A) echo "sequential" ;;
+        B) echo "parallel" ;;
+        C) echo "parallel" ;;
+        D) echo "sequential" ;;
+        E) echo "sequential" ;;
+        F) echo "sequential" ;;
+        G) echo "parallel" ;;
+        H) echo "parallel" ;;
+    esac
+}
 
-WAVE_DESCS[A]="Foundation (setup, types, auth, i18n, nav, CRUD, clients)"
-WAVE_DESCS[B]="Monitoring + Trainee Programs + Settings"
-WAVE_DESCS[C]="Trainee Logging + Push Notifications"
-WAVE_DESCS[D]="Trainee History"
-WAVE_DESCS[E]="Progress Charts"
-WAVE_DESCS[F]="Polish & Hardening"
+get_wave_desc() {
+    case "$1" in
+        A) echo "Foundation + Design System + Exercise Library + Auth/Onboarding" ;;
+        B) echo "Monitoring + Trainee Programs + Settings + RevenueCat" ;;
+        C) echo "Logging (+ Timer + PRs) + Push Notifications" ;;
+        D) echo "History (+ Calendar Heatmap)" ;;
+        E) echo "Charts" ;;
+        F) echo "Polish + Haptics + Streaks & Gamification" ;;
+        G) echo "Body Measurements + Goals + Nutrition" ;;
+        H) echo "Messaging + Marketplace" ;;
+    esac
+}
 
 FILES_TO_COPY="ralph.ps1 ralph.sh ralph-prompt.txt PRD.md progress.txt"
 
@@ -91,9 +108,9 @@ show_wave_plan() {
     echo ""
 
     for wave_name in "${WAVE_ORDER[@]}"; do
-        local phases="${WAVE_PHASES[$wave_name]}"
-        local mode="${WAVE_MODES[$wave_name]}"
-        local desc="${WAVE_DESCS[$wave_name]}"
+        local phases="$(get_wave_phases "$wave_name")"
+        local mode="$(get_wave_mode "$wave_name")"
+        local desc="$(get_wave_desc "$wave_name")"
         local marker=""
         [ "$wave_name" = "$START_WAVE" ] && marker=" <-- START"
 
@@ -312,7 +329,7 @@ for i in "${!WAVE_ORDER[@]}"; do
 done
 
 if [ "$start_index" -lt 0 ]; then
-    echo -e "${RED}  >> Invalid start wave: $START_WAVE. Use A-F.${NC}"
+    echo -e "${RED}  >> Invalid start wave: $START_WAVE. Use A-H.${NC}"
     exit 1
 fi
 
@@ -320,9 +337,9 @@ total_start=$(date +%s)
 
 for ((w=start_index; w<${#WAVE_ORDER[@]}; w++)); do
     wave_name="${WAVE_ORDER[$w]}"
-    mode="${WAVE_MODES[$wave_name]}"
-    phases="${WAVE_PHASES[$wave_name]}"
-    desc="${WAVE_DESCS[$wave_name]}"
+    mode="$(get_wave_mode "$wave_name")"
+    phases="$(get_wave_phases "$wave_name")"
+    desc="$(get_wave_desc "$wave_name")"
 
     echo ""
     echo -e "${CYAN}==========================================="
