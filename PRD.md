@@ -2,20 +2,22 @@
 
 ## Introduction
 
-An AI-powered personal trainer app that generates personalized workout programs, tracks progress, and adapts over time. No human coach needed. English-first, Hebrew added post-launch. Goal: maximum revenue, minimum development cost.
+The fastest, most satisfying workout tracker with AI-powered program generation. Log workouts in seconds, celebrate PRs with gold confetti, track streaks, share wins with friends, and let AI build your next program. English-first, Hebrew added post-launch. Goal: maximum revenue, minimum development cost.
 
-The AI generates tailored multi-week training programs based on a deep onboarding quiz, then adapts the program weekly based on logged performance. Users log workouts via a checklist-style interface, get automatic PR detection with celebrations, track streaks, and share beautiful workout summary cards for organic growth.
+Users log workouts via a lightning-fast checklist interface (<3 seconds per set), get automatic PR detection with celebrations, track streaks, follow friends and react to their workouts, and share beautiful workout summary cards for organic growth. The AI generates tailored multi-week training programs based on a deep onboarding quiz, then adapts the program weekly based on logged performance (Pro feature).
 
 Built with Expo (managed workflow), Supabase (PostgreSQL + Edge Functions), Clerk (auth), TanStack Query (server state), Zustand (UI state), Uniwind (styling), react-native-reusables (UI components), React Native Reanimated (animations), and expo-haptics (tactile feedback). AI generation powered by Google Gemini API (free tier) via Supabase Edge Functions. Monetized via a Free + Pro model with RevenueCat subscriptions.
 
 ## Goals
 
+- Deliver the fastest, most satisfying workout logging experience (< 3 seconds per set)
 - Generate personalized AI workout programs based on user profile (goals, experience, equipment, injuries, training style)
 - Allow users to freely pick which workout to do on any day and log it via a checklist UI
 - Adapt programs weekly via AI analysis of logged performance (Pro feature)
-- Provide full workout history with search, filtering, and progress charts (Pro)
+- Provide full workout history with search and filtering (free) and advanced analytics (Pro)
 - Auto-detect and celebrate personal records with gold confetti and haptic feedback
 - Track workout streaks and achievements to drive retention
+- Build a lightweight social layer (follow friends, activity feed, reactions, leaderboards) for viral growth
 - Enable social sharing of workout summaries for organic growth
 - Deliver a 7-day free trial with smart paywall triggers to maximize conversion
 - Support offline-capable logging via TanStack Query persistence
@@ -24,6 +26,7 @@ Built with Expo (managed workflow), Supabase (PostgreSQL + Edge Functions), Cler
 - Provide 5 pre-built program templates for immediate value without AI generation
 - Drive App Store reviews via smart review prompt system
 - Enable referral-based viral growth
+- Build an exercise database website for SEO-driven organic downloads
 
 ## Revenue Model
 
@@ -33,14 +36,22 @@ Built with Expo (managed workflow), Supabase (PostgreSQL + Edge Functions), Cler
 |---------|------|------------------------------------------------|
 | AI program generation | 1 free program | Unlimited + regenerate anytime |
 | Workout logging | Yes | Yes |
-| History | Last 30 days | Unlimited |
-| Progress charts | No | Yes |
-| PR tracking | Basic (shows PR badge) | Full history, PR charts |
+| History | **Unlimited** | Unlimited |
+| Progress charts | **Basic (1 exercise)** | Full (all exercises + volume trends) |
+| PR tracking | **Full PR history** | PR history + PR charts |
 | AI weekly adaptation | No | Yes (the killer feature) |
+| Advanced analytics | No | Volume trends, muscle group breakdown, frequency analysis |
 | Streaks & achievements | Basic streak counter | Full achievement system |
 | Rest timer | Yes | Yes |
-| Social sharing | With app watermark | Clean cards |
+| Activity feed | **View friends' workouts** | View + leaderboards |
+| Social sharing | With app watermark | Clean cards (no watermark) |
 | Export data | No | CSV export |
+
+**Why a generous free tier:**
+- Hevy grew to $160K MRR and 16M users with a generous free tier (unlimited logging, unlimited history) and only $15K total marketing spend. Users love the free product, tell friends, and a small percentage convert to Pro.
+- Restricting history to 30 days feels punitive — users who've logged 3 months of workouts and can't see them will leave angry, not upgrade.
+- Free users need to SEE their gains (basic progress chart) to stay motivated. This is the #1 retention driver.
+- Give free users enough to love the app and tell friends. Gate the *power user* features that someone training 3+ months actually wants.
 
 **Why this pricing:**
 - $49.99/year: higher than dumb trackers (Strong $29.99) because AI adds coaching value, lower than premium AI apps (Fitbod $79.99) to win market share
@@ -145,6 +156,7 @@ All numbers use tabular-nums (digits don't shift as values change)
 6. **Generous spacing** — 16px card padding, 24px section gaps
 7. **Gradient CTAs** — Primary buttons: subtle green-to-emerald gradient
 8. **No borders in dark mode** — Use background color layers for depth instead
+9. **Speed-first logging** — Logging a set should take < 3 seconds (tap weight, tap reps, tap checkmark). Pre-fill from last workout. No unnecessary modals or confirmations during active logging. The app should feel invisible during the workout.
 
 ### Micro-Interactions (Reanimated + expo-haptics)
 
@@ -192,10 +204,11 @@ All numbers use tabular-nums (digits don't shift as values change)
 - Date-grouped list
 - Cards: workout name, exercise count, total volume, PR badges
 - Search bar + program filter chips
-- 30-day limit for Free users (paywall trigger)
+- Unlimited history for all users; advanced analytics gated to Pro
 
-**Progress (Pro):**
-- Swipeable chart cards (strength, volume, frequency)
+**Progress (Free basic + Pro advanced):**
+- Free: basic weight progression chart for 1 exercise at a time
+- Pro: swipeable chart cards (strength, volume, frequency), muscle group breakdown, frequency analysis
 - Time range chips (1W / 1M / 3M / 6M / 1Y)
 - "Best Lifts" summary at top (exercise -> max weight)
 
@@ -223,6 +236,8 @@ Relational tables with foreign keys:
 - `streaks` — id, user_id (FK -> users, unique), current_streak (int default 0), longest_streak (int default 0), last_workout_date (date nullable), updated_at
 - `achievements` — id, user_id (FK -> users), achievement_type (text), unlocked_at (timestamptz default now())
 - `referrals` — id, referrer_id (FK -> users), invitee_id (FK -> users, nullable), referral_code (text unique), bonus_days_granted (bool default false), created_at
+- `follows` — id, follower_id (FK -> users), following_id (FK -> users), created_at. Unique constraint on (follower_id, following_id). RLS: users can INSERT/DELETE their own follows (follower_id = auth.uid()), SELECT follows where they are follower or following.
+- `workout_reactions` — id, user_id (FK -> users), log_id (FK -> workout_logs), reaction_type (text check 'like'/'high_five'), created_at. Unique constraint on (user_id, log_id). RLS: users can INSERT/DELETE their own reactions, SELECT reactions on logs from users they follow.
 
 ## Project Structure
 
@@ -244,16 +259,20 @@ app/                    # Expo Router file-based routing
     generating.tsx      # AI program generation loading screen
     paywall.tsx         # Post-onboarding paywall
   (app)/                # Main app (single group, no role split)
-    _layout.tsx         # Bottom tabs (Dashboard, Workout, History, Progress, Settings)
+    _layout.tsx         # Bottom tabs (Dashboard, Workout, History, Progress, Social, Settings)
     dashboard.tsx       # Today's workout, streak, recent PRs, AI suggestions
     workout/            # Logging screens
       index.tsx         # Current program / workout selection
       [workoutId].tsx   # Workout logging screen
       summary.tsx       # Post-workout summary + sharing
     history/            # Past workouts
-      index.tsx         # History list (30-day limit for Free)
+      index.tsx         # History list (unlimited for all users)
       [id].tsx          # History detail
     progress.tsx        # Charts (Pro gated)
+    social/             # Social features
+      index.tsx         # Activity feed (friends' workouts)
+      leaderboard.tsx   # Weekly leaderboard (Pro)
+      find-friends.tsx  # Search / invite friends
     settings.tsx        # Account, subscription, referral, sign out
     program.tsx         # Current program display
     paywall.tsx         # In-app paywall (triggered by feature gates)
@@ -264,6 +283,9 @@ components/
   StreakCounter.tsx      # Flame counter with animation
   AchievementBadge.tsx  # Achievement badge display
   ShareCard.tsx         # Social sharing card generator
+  ActivityFeed.tsx      # Friends' workout activity feed
+  WorkoutReaction.tsx   # Like/high-five button component
+  Leaderboard.tsx       # Weekly friends leaderboard (Pro)
   SkeletonCard.tsx      # Loading placeholder
   EmptyState.tsx        # Empty state with CTA
   ErrorBoundary.tsx     # Sentry error boundary
@@ -295,6 +317,7 @@ lib/
     streaks.ts
     achievements.ts
     referrals.ts
+    social.ts             # Follows, activity feed, reactions service
 hooks/
   usePrograms.ts
   useWorkouts.ts
@@ -307,6 +330,7 @@ hooks/
   useAchievements.ts
   useEntitlements.ts    # RevenueCat gating (useIsPro)
   useReferrals.ts
+  useSocial.ts          # Follows, activity feed, reactions hooks
 stores/
   uiStore.ts            # Zustand (UI state only: theme, active workout)
 types/
@@ -1146,7 +1170,7 @@ supabase/
 - [ ] Each item shows date, workout name, exercise count, total volume, PR badges (using Card)
 - [ ] List sorted by date descending (newest first)
 - [ ] Tapping an item navigates to history detail screen
-- [ ] **Free tier:** Only shows last 30 days. Trying to scroll past triggers paywall.
+- [ ] **All users:** Full history available (unlimited). No time-based restrictions.
 - [ ] Styled with Uniwind dark theme
 - [ ] Typecheck passes
 
@@ -1205,9 +1229,9 @@ supabase/
 
 ---
 
-### US-059: Build progress screen (Pro)
+### US-059: Build progress screen (Free basic + Pro advanced)
 
-**Description:** As a Pro user, I want a progress screen showing charts of my exercise improvements over time so that I can see my gains.
+**Description:** As a user, I want a progress screen showing charts of my exercise improvements over time so that I can see my gains. Free users get basic progress (1 exercise chart), Pro users get full analytics.
 
 **Acceptance Criteria:**
 - [ ] `app/(app)/progress.tsx` lets the user pick an exercise from a dropdown (populated from logged exercise names)
@@ -1215,7 +1239,9 @@ supabase/
 - [ ] Time range chips: 1W, 1M, 3M, 6M, 1Y
 - [ ] "Best Lifts" summary at top showing exercise -> max weight for top 5 exercises
 - [ ] Shows "No data yet" empty state if the exercise has no logged history
-- [ ] **Gated behind Pro subscription** via `<ProGate>` — Free users see paywall
+- [ ] **Free users:** Can view basic progress chart for 1 exercise at a time (weight progression only)
+- [ ] **Pro users:** Full analytics — all exercises, volume trends, muscle group breakdown, frequency analysis
+- [ ] Advanced analytics sections gated via `<ProGate>` — Free users see paywall when tapping advanced features
 - [ ] Styled with Uniwind dark theme
 - [ ] Typecheck passes
 
@@ -1265,7 +1291,7 @@ supabase/
 - [ ] `hooks/useEntitlements.ts` exports `useIsPro()` hook that checks RevenueCat entitlements
 - [ ] `useIsPro()` returns `{ isPro: boolean, isLoading: boolean }`
 - [ ] `components/ProGate.tsx` wrapper component shows paywall when user is not Pro
-- [ ] Features gated: progress charts, history beyond 30 days, AI regeneration (after first free), AI suggestions, full achievement system, CSV export, clean social sharing cards
+- [ ] Features gated: advanced analytics (volume trends, muscle group breakdown, frequency analysis), AI regeneration (after first free), AI weekly adaptation + suggestions, full achievement system, weekly leaderboards, clean social sharing cards (no watermark), CSV export
 - [ ] Typecheck passes
 
 ---
@@ -1302,10 +1328,10 @@ supabase/
 
 **Acceptance Criteria:**
 - [ ] Paywall triggered when:
-  - Free user tries to view history beyond 30 days
-  - Free user taps on progress charts tab
+  - Free user taps on advanced analytics (volume trends, muscle group breakdown, frequency analysis)
   - Free user tries to regenerate AI program (after first free generation)
   - After AI generates suggestions (show suggestions preview, paywall to apply them)
+  - Free user taps on weekly leaderboard
   - After hitting a PR: celebration + subtle "Unlock AI to keep progressing" prompt
 - [ ] Each trigger point navigates to paywall with context-specific messaging
 - [ ] Track paywall trigger source for analytics (store in paywall route params)
@@ -1313,7 +1339,7 @@ supabase/
 
 ---
 
-### Phase 8: Engagement + Polish (Week 7-8)
+### Phase 8: Engagement, Social, + Polish (Week 7-8)
 
 ---
 
@@ -1440,9 +1466,9 @@ supabase/
 
 **Acceptance Criteria:**
 - [ ] `app/(app)/_layout.tsx` defines a bottom tab layout using Expo Router `Tabs`
-- [ ] Five tabs: Dashboard, Workout, History, Progress, Settings
+- [ ] Six tabs: Dashboard, Workout, History, Progress, Social, Settings
 - [ ] Tab icons present (Lucide or compatible icon library)
-- [ ] Progress tab shows lock icon for Free users
+- [ ] Progress tab accessible to all users (basic chart free, advanced analytics Pro-gated)
 - [ ] Active tab uses accent green color
 - [ ] Tab bar uses `bg-background-elevated` background
 - [ ] Styled with Uniwind dark theme
@@ -1538,6 +1564,109 @@ supabase/
 
 ---
 
+### US-080: Create SQL migrations for follows and workout_reactions tables
+
+**Description:** As a developer, I want database tables for the social layer (follows and workout reactions) so that users can follow friends and react to their workouts.
+
+**Acceptance Criteria:**
+- [ ] Migration creates `follows` table with columns: `id` (uuid PK), `follower_id` (uuid FK -> users not null), `following_id` (uuid FK -> users not null), `created_at` (timestamptz default now())
+- [ ] Unique constraint on `follows(follower_id, following_id)` to prevent duplicate follows
+- [ ] Check constraint: `follower_id != following_id` (can't follow yourself)
+- [ ] Indexes on `follower_id` and `following_id` for efficient feed queries
+- [ ] Migration creates `workout_reactions` table with columns: `id` (uuid PK), `user_id` (uuid FK -> users not null), `log_id` (uuid FK -> workout_logs not null), `reaction_type` (text not null check 'like'/'high_five'), `created_at` (timestamptz default now())
+- [ ] Unique constraint on `workout_reactions(user_id, log_id)` to prevent duplicate reactions
+- [ ] RLS policies: users can INSERT/DELETE their own follows (`follower_id = auth.uid()`); users can SELECT follows where they are follower or following; users can INSERT/DELETE their own reactions; users can SELECT reactions on logs visible to them (from users they follow)
+- [ ] Migration runs successfully: `supabase db push`
+- [ ] Typecheck passes
+
+---
+
+### US-081: Build friend system (follow/unfollow)
+
+**Description:** As a user, I want to follow and unfollow other users so that I can see my gym buddies' workouts and build a social training community.
+
+**Acceptance Criteria:**
+- [ ] `lib/services/social.ts` exports `followUser(followingId)`, `unfollowUser(followingId)`, `getFollowers(userId)`, `getFollowing(userId)`, `searchUsers(query)`
+- [ ] `hooks/useSocial.ts` exports `useFollowers(userId)`, `useFollowing(userId)`, `useSearchUsers(query)`, `useFollowUser`, `useUnfollowUser`
+- [ ] `app/(app)/social/find-friends.tsx` renders a search screen: search by display name, list of results with follow/unfollow toggle button
+- [ ] Invite via shareable link (deep link with user ID or referral code)
+- [ ] Follow/unfollow toggles with optimistic updates via TanStack Query
+- [ ] Follower/following counts displayed on user's profile section in settings
+- [ ] Styled with Uniwind dark theme
+- [ ] Typecheck passes
+
+---
+
+### US-082: Build activity feed
+
+**Description:** As a user, I want to see a feed of my friends' completed workouts so that I stay motivated and connected to my gym community.
+
+**Acceptance Criteria:**
+- [ ] `app/(app)/social/index.tsx` displays a chronological feed of followed users' completed workouts
+- [ ] Each feed item shows: user display name, workout name, duration, total volume, number of PRs, time ago
+- [ ] Tapping a feed item shows workout detail (exercises, sets, PRs)
+- [ ] Feed data fetched via `lib/services/social.ts` export `getActivityFeed(userId, options?)` with cursor-based pagination
+- [ ] `hooks/useSocial.ts` exports `useActivityFeed()` with infinite scroll support
+- [ ] Pull-to-refresh support
+- [ ] Empty state: "Follow friends to see their workouts here" with CTA to find friends
+- [ ] **Free users:** Can view the activity feed
+- [ ] Rendered with `FlashList` for performance
+- [ ] Styled with Uniwind dark theme
+- [ ] Typecheck passes
+
+---
+
+### US-083: Build workout reactions (like/high-five)
+
+**Description:** As a user, I want to react to my friends' workouts with a like or high-five so that I can encourage their progress and stay engaged.
+
+**Acceptance Criteria:**
+- [ ] `components/WorkoutReaction.tsx` renders a like/high-five button on each activity feed item
+- [ ] `lib/services/social.ts` exports `reactToWorkout(logId, reactionType)`, `removeReaction(logId)`, `getReactionsForLog(logId)`
+- [ ] `hooks/useSocial.ts` exports `useReactToWorkout`, `useRemoveReaction`, `useReactionsForLog(logId)`
+- [ ] Tapping the reaction button toggles like/unlike with optimistic update
+- [ ] Reaction count displayed next to the button
+- [ ] Push notification sent to workout owner when someone reacts (notification logic scaffolded, actual push via Expo Notifications — can be deferred to post-launch)
+- [ ] `hapticLight()` on reaction tap
+- [ ] Styled with Uniwind dark theme
+- [ ] Typecheck passes
+
+---
+
+### US-084: Build weekly leaderboard (Pro)
+
+**Description:** As a Pro user, I want a weekly leaderboard among my friends so that friendly competition drives me to train harder.
+
+**Acceptance Criteria:**
+- [ ] `app/(app)/social/leaderboard.tsx` displays a weekly leaderboard of followed users ranked by total volume or workout count
+- [ ] Toggle between "Volume" and "Workouts" ranking
+- [ ] Shows current week data (Monday-Sunday)
+- [ ] Each entry: rank, display name, metric value, trend arrow (up/down from last week)
+- [ ] Current user highlighted in the list
+- [ ] `lib/services/social.ts` exports `getWeeklyLeaderboard(userId, metric)` using aggregate queries on `workout_logs` + `completed_sets`
+- [ ] `hooks/useSocial.ts` exports `useWeeklyLeaderboard(metric)`
+- [ ] **Gated behind Pro subscription** via `<ProGate>` — Free users see paywall
+- [ ] Styled with Uniwind dark theme + accent green for top 3
+- [ ] Typecheck passes
+
+---
+
+### US-085: Build exercise database website for SEO
+
+**Description:** As a developer, I want a simple static website with individual pages for each exercise in the library so that long-tail SEO drives organic app downloads.
+
+**Acceptance Criteria:**
+- [ ] Static site generated from `exercises_library` data (~50 exercises)
+- [ ] Each exercise page includes: exercise name (H1), description, primary muscle group, equipment needed, related exercises, and a prominent "Track this in [App Name]" CTA with App Store link
+- [ ] Landing page lists all exercises grouped by muscle group
+- [ ] Pages optimized for SEO: meta title, meta description, Open Graph tags, structured data (Schema.org `ExerciseAction`)
+- [ ] Mobile-friendly responsive design (dark theme matching app aesthetic)
+- [ ] Deployed as static site (Vercel, Netlify, or GitHub Pages)
+- [ ] Site directory: `web/` in project root (separate from Expo app)
+- [ ] Build script in `package.json`: `"web:build"` to generate static pages
+
+---
+
 ## Non-Goals (MVP)
 
 - **Wearable integrations** — no Apple Watch, Fitbit, etc.
@@ -1552,7 +1681,7 @@ supabase/
 - **Calendar heatmap** — simple history list for now. Heatmap in v1.1.
 - **Super Admin panel** — founder uses Supabase Dashboard
 - **Exercise video hosting** — `video_url` field supports external links only
-- **Web app** — mobile only (iOS + Android)
+- **Full web app** — mobile app is iOS + Android; web presence is SEO exercise database only (US-085)
 - **AI weekly adaptation** — post-launch v1.2 (tables and Edge Function scaffolded but adaptation logic deferred)
 
 ## Technical Notes
@@ -1603,7 +1732,7 @@ supabase/
 | A | 1-4 | Sequential | Foundation + DB + Auth + AI Generation |
 | B | 5 | Sequential | Workout Tracking (the money screen) |
 | C | 6, 7 | Parallel | History/Progress + Monetization |
-| D | 8 | Sequential | Engagement, Polish, and Launch Prep |
+| D | 8 | Sequential | Engagement, Social, Polish, and Launch Prep |
 
 ## Post-Launch Roadmap
 
@@ -1635,3 +1764,48 @@ supabase/
 
 **App preview video (30 sec):**
 Quiz flow -> AI generation animation -> logging a set -> PR celebration -> sharing card
+
+## Go-to-Market Strategy
+
+### Pre-Launch (4 weeks before App Store)
+- Landing page with waitlist signup (target 500+ subscribers)
+- Begin posting helpful content on r/fitness, r/weightroom (no promotion — genuine value)
+- Start writing SEO content: exercise guides, program comparisons
+- Identify 20-30 fitness micro-influencers for seeding
+- Exercise database website live with SEO-optimized pages (US-085)
+
+### Launch Week
+- ProductHunt launch (Tuesday or Wednesday for max visibility)
+- TestFlight beta converts to App Store downloads
+- Reddit announcement in appropriate subreddits (r/fitness, r/weightroom, r/naturalbodybuilding)
+- Free Pro accounts to 20-30 micro-influencers
+- Email waitlist with launch announcement + exclusive offer
+
+### Months 1-3 (Foundation)
+- Optimize ASO weekly (title, subtitle, keywords, screenshots)
+- Publish 2-3 SEO articles/week on companion website
+- Post-workout sharing cards as #1 organic growth feature
+- Respond to every App Store review within 24 hours
+- Monitor social sharing volume and iterate on card design
+
+### Months 3-6 (Compounding)
+- Launch referral program (7 days free Pro for both parties)
+- Small Apple Search Ads campaign ($100-$300/month, targeting competitor keywords)
+- Double down on performing SEO content
+- Activity feed + reactions driving daily re-engagement
+- Leaderboards creating weekly competition loops
+
+### Growth Targets
+
+| Milestone | Downloads (cumulative) | Revenue/month | Key driver |
+|-----------|----------------------|---------------|------------|
+| Month 1 | 500-1,000 | $0-200 | ASO + ProductHunt + influencer seeding |
+| Month 3 | 3,000+ | $200-1,000 | SEO + sharing cards + referrals |
+| Month 6 | 10,000+ | $500-3,000 | Social viral loop + Apple Search Ads |
+| Month 12 | 30,000+ | $2,000-8,000 | Compounding organic + social + SEO |
+
+### The Math to $5K/month
+- At $49.99/year (blended with some monthly): need ~850-1,000 paying subscribers
+- At 2-3% conversion rate: need ~35,000-50,000 total downloads
+- At Hevy's organic growth rate (slow start, compounding): realistic at month 12-18
+- Social viral loop is the difference between getting there and not — every user brings more users

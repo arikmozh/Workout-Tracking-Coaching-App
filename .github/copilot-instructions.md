@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-AI-powered personal trainer app that generates personalized workout programs, tracks progress, and adapts over time. English-first mobile app with dark-mode-first design system and neon green accents. Features AI program generation via Google Gemini API (free tier), workout logging with PR detection and celebrations, streaks & gamification, social sharing cards, and smart paywall. Built with Expo (managed workflow), TypeScript strict, Supabase (PostgreSQL + Edge Functions), Clerk (auth via Google + Apple OAuth), TanStack Query (server state), Zustand (UI state only), Uniwind (styling, 2.5x faster than NativeWind), react-native-reusables (UI components), React Native Reanimated (animations), and expo-haptics (tactile feedback). Monetized via Free + Pro model with RevenueCat. Currently in planning phase with PRD-driven development using autonomous "Ralph" agent workflow.
+The fastest, most satisfying workout tracker with AI-powered program generation. English-first mobile app with dark-mode-first design system and neon green accents. Core identity: "the best workout tracker" that ALSO has an AI coach. Features lightning-fast workout logging (<3 seconds per set), PR detection with celebrations, streaks & gamification, a lightweight social layer (follow friends, activity feed, reactions, leaderboards), social sharing cards, AI program generation via Google Gemini API (free tier), and smart paywall. Built with Expo (managed workflow), TypeScript strict, Supabase (PostgreSQL + Edge Functions), Clerk (auth via Google + Apple OAuth), TanStack Query (server state), Zustand (UI state only), Uniwind (styling, 2.5x faster than NativeWind), react-native-reusables (UI components), React Native Reanimated (animations), and expo-haptics (tactile feedback). Monetized via Free + Pro model with RevenueCat. Generous free tier (unlimited history, basic progress chart, full PR history, activity feed) to maximize organic growth — gate power user features (advanced analytics, AI adaptation, leaderboards, clean sharing cards). Currently in planning phase with PRD-driven development using autonomous "Ralph" agent workflow.
 
 ## Ralph Workflow (CRITICAL)
 
@@ -52,16 +52,20 @@ app/                    # Expo Router file-based routing
     generating.tsx      # AI program generation loading screen
     paywall.tsx         # Post-onboarding paywall
   (app)/                # Main app (single group, no role split)
-    _layout.tsx         # Bottom tabs (Dashboard, Workout, History, Progress, Settings)
+    _layout.tsx         # Bottom tabs (Dashboard, Workout, History, Progress, Social, Settings)
     dashboard.tsx       # Today's workout, streak, recent PRs, AI suggestions
     workout/            # Logging screens
       index.tsx         # Current program / workout selection
       [workoutId].tsx   # Workout logging screen
       summary.tsx       # Post-workout summary + sharing
     history/            # Past workouts
-      index.tsx         # History list (30-day limit for Free)
+      index.tsx         # History list (unlimited for all users)
       [id].tsx          # History detail
     progress.tsx        # Charts (Pro gated)
+    social/             # Social features
+      index.tsx         # Activity feed (friends' workouts)
+      leaderboard.tsx   # Weekly leaderboard (Pro)
+      find-friends.tsx  # Search / invite friends
     settings.tsx        # Account, subscription, referral, sign out
     program.tsx         # Current program display
     paywall.tsx         # In-app paywall (triggered by feature gates)
@@ -79,6 +83,9 @@ components/
   StreakCounter.tsx      # Flame counter with animation
   AchievementBadge.tsx  # Achievement badge display
   ShareCard.tsx         # Social sharing card generator
+  ActivityFeed.tsx      # Friends' workout activity feed
+  WorkoutReaction.tsx   # Like/high-five button component
+  Leaderboard.tsx       # Weekly friends leaderboard (Pro)
   SkeletonCard.tsx      # Loading placeholder
   EmptyState.tsx        # Empty state with CTA
   ErrorBoundary.tsx     # Sentry error boundary
@@ -108,6 +115,7 @@ lib/
     streaks.ts          # Streak tracking service
     achievements.ts     # Achievement unlocking service
     referrals.ts        # Referral code service
+    social.ts           # Follows, activity feed, reactions service
 hooks/
   usePrograms.ts        # TanStack Query hooks for programs
   useWorkouts.ts        # TanStack Query hooks for workouts
@@ -121,6 +129,7 @@ hooks/
   useStreaks.ts         # Streak tracking hooks
   useAchievements.ts    # Achievement hooks
   useReferrals.ts       # Referral hooks
+  useSocial.ts          # Follows, activity feed, reactions hooks
 stores/
   uiStore.ts            # Zustand — UI-only state (theme, active workout, rest timer)
 types/
@@ -149,6 +158,8 @@ supabase/
 - `streaks` — workout streak tracking (user_id, current_streak, longest_streak, last_workout_date)
 - `achievements` — gamification badges, 5 types: first_workout, streak_7, streak_30, streak_100, prs_10
 - `referrals` — referral codes and bonus tracking
+- `follows` — social follow relationships (follower_id, following_id, unique constraint)
+- `workout_reactions` — likes/high-fives on friends' workouts (user_id, log_id, reaction_type)
 
 ## Development Conventions
 
@@ -225,7 +236,7 @@ The `ralph-parallel.sh` orchestrator runs phases in waves:
 | A | sequential | 1-4 | Foundation + DB + Auth + AI Generation |
 | B | sequential | 5 | Workout Tracking (the money screen) |
 | C | parallel | 6, 7 | History/Progress + Monetization |
-| D | sequential | 8 | Engagement, Polish, Launch Prep |
+| D | sequential | 8 | Engagement, Social, Polish, Launch Prep |
 
 Each phase runs in a separate git worktree when parallel execution is active.
 
@@ -351,7 +362,8 @@ Log learnings to appropriate progress file:
 - SDK initialized in root layout
 - `useIsPro()` hook for entitlement checking
 - `<ProGate>` component for feature gating
-- Gated features: progress charts, unlimited history, AI regeneration, AI suggestions, full achievements, CSV export, clean social cards
+- Gated features: advanced analytics (volume trends, muscle group breakdown, frequency analysis), AI regeneration (after first free), AI weekly adaptation + suggestions, full achievements, weekly leaderboards, clean social cards (no watermark), CSV export
+- Free tier is generous: unlimited history, basic progress chart (1 exercise), full PR history, activity feed (view friends' workouts)
 - Requires EAS dev build (native module)
 
 ### Sentry
@@ -402,4 +414,4 @@ Log learnings to appropriate progress file:
 
 ## Current State
 
-Planning phase — PRD complete (~79 user stories across 8 phases), no source code yet. First implementation cycle starts with US-001 (Initialize Expo project with Expo Router). Revenue model: Free + Pro ($6.99/mo, $49.99/yr, $99.99 lifetime). Dark-mode-first design system with neon green accent palette. AI program generation via Google Gemini API (free tier) as core differentiator. Styling via Uniwind (2.5x faster than NativeWind, same Tailwind `className` API).
+Planning phase — PRD complete (~85 user stories across 8 phases), no source code yet. First implementation cycle starts with US-001 (Initialize Expo project with Expo Router). Revenue model: Free + Pro ($6.99/mo, $49.99/yr, $99.99 lifetime) with generous free tier (unlimited history, basic progress, full PRs, activity feed). Dark-mode-first design system with neon green accent palette. Core identity: fastest workout tracker with AI as premium enhancement. Social layer (follows, feed, reactions, leaderboards) for viral growth. Exercise database website for SEO. Styling via Uniwind (2.5x faster than NativeWind, same Tailwind `className` API).
